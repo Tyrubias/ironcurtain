@@ -1,5 +1,8 @@
+use std::{error::Error, fmt::Display};
+
 use ironcurtain_model::courses::{Course, Page};
-use reqwest::header::HeaderValue;
+use parse_link_header::parse_with_rel;
+use reqwest::header::ToStrError;
 
 pub mod models;
 
@@ -28,31 +31,92 @@ impl Client {
             .await
     }
 
-    pub async fn get_courses(&self) -> Result<Page<Course>, reqwest::Error> {
+    pub async fn get_courses(&self) -> Result<Page<Course>, CanvasError> {
         let response = self.get("courses").await?;
         let headers = response.headers();
         let courses = self.get("courses").await?.json::<Vec<Course>>().await?;
+        header_to_page(&response, headers.get("link"), courses)
+    }
+}
 
-        match headers.get("link") {
-            Some(_value) => Ok(Page {
-                items: courses,
-                current: response.url().to_string(),
-                next: None,
-                prev: None,
-                first: response.url().to_string(),
-                last: None,
-            }),
-            None => Ok(Page {
-                items: courses,
-                current: response.url().to_string(),
-                next: None,
-                prev: None,
-                first: response.url().to_string(),
-                last: None,
-            }),
+fn header_to_page<T>(
+    response: &reqwest::Response,
+    header: Option<&reqwest::header::HeaderValue>,
+    items: Vec<T>,
+) -> Result<Page<T>, CanvasError> {
+    let header = header.map_or("", |x| x.to_str().map_or("", |x| x));
+    let links = parse_with_rel(header)?;
+    Ok(Page {
+        items,
+        current: links
+            .get("current")
+            .map_or_else(|| response.url().clone(), |x| x.uri.clone()),
+        next: links.get("next").map(|x| x.uri.clone()),
+        prev: links.get("prev").map(|x| x.uri.clone()),
+        first: links
+            .get("first")
+            .map_or_else(|| response.url().clone(), |x| x.uri.clone()),
+        last: links.get("last").map(|x| x.uri.clone()),
+    })
+}
+
+#[derive(Debug)]
+pub struct CanvasError {
+    kind: CanvasErrorKind,
+    message: String,
+}
+
+#[derive(Debug)]
+enum CanvasErrorKind {
+    Request,
+    HeaderParse,
+    LinkParse,
+}
+
+impl Display for CanvasErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl From<reqwest::Error> for CanvasError {
+    fn from(err: reqwest::Error) -> Self {
+        Self {
+            kind: CanvasErrorKind::Request,
+            message: err.to_string(),
         }
     }
 }
+
+impl From<ToStrError> for CanvasError {
+    fn from(err: ToStrError) -> Self {
+        Self {
+            kind: CanvasErrorKind::HeaderParse,
+            message: err.to_string(),
+        }
+    }
+}
+
+impl From<parse_link_header::Error> for CanvasError {
+    fn from(err: parse_link_header::Error) -> Self {
+        Self {
+            kind: CanvasErrorKind::LinkParse,
+            message: err.to_string(),
+        }
+    }
+}
+
+impl Display for CanvasError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "CanvasError [kind=\'{}\', message=\'{}\']",
+            self.kind, self.message
+        )
+    }
+}
+
+impl Error for CanvasError {}
 
 #[derive(Default)]
 pub struct ClientBuilder {
@@ -89,19 +153,5 @@ impl ClientBuilder {
     pub fn set_token(&mut self, token: String) -> &mut Self {
         self.auth_token = token;
         self
-    }
-}
-
-fn parse_link(link_header: &HeaderValue) {
-    let full_link = link_header.to_str().unwrap().to_owned();
-    let link_segs: Vec<&str> = full_link.split(',').collect();
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
     }
 }

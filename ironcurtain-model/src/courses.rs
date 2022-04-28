@@ -3,6 +3,7 @@ use chrono::Local;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
+use url::Url;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -23,7 +24,7 @@ pub struct CourseProgress {
     #[serde(rename = "requirement_completed_count")]
     pub requirement_completed_count: i64,
     #[serde(rename = "next_requirement_url")]
-    pub next_requirement_url: Option<String>,
+    pub next_requirement_url: Option<Url>,
     #[serde(rename = "completed_at")]
     pub completed_at: Option<String>,
 }
@@ -186,9 +187,9 @@ pub enum DefaultView {
 
 pub struct Page<T> {
     pub items: Vec<T>,
-    pub current: String,
-    pub next: Option<String>,
-    pub prev: Option<String>,
-    pub first: String,
-    pub last: Option<String>,
+    pub current: Url,
+    pub next: Option<Url>,
+    pub prev: Option<Url>,
+    pub first: Url,
+    pub last: Option<Url>,
 }
