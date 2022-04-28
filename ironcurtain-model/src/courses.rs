@@ -5,6 +5,10 @@ use serde::Serialize;
 use serde_json::Value;
 use url::Url;
 
+#[derive(Deserialize)]
+#[serde(transparent)]
+pub struct Courses(pub Vec<Course>);
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Term {
@@ -35,88 +39,88 @@ pub struct Course {
     pub id: i64,
     #[serde(rename = "sis_course_id")]
     pub sis_course_id: Option<Value>,
-    pub uuid: String,
+    pub uuid: Option<String>,
     #[serde(rename = "integration_id")]
     pub integration_id: Option<Value>,
     #[serde(rename = "sis_import_id")]
     pub sis_import_id: Option<i64>,
-    pub name: String,
+    pub name: Option<String>,
     #[serde(rename = "course_code")]
-    pub course_code: String,
+    pub course_code: Option<String>,
     #[serde(rename = "original_name")]
     pub original_name: Option<String>,
     #[serde(rename = "workflow_state")]
     pub workflow_state: Option<WorkflowState>,
     #[serde(rename = "account_id")]
-    pub account_id: i64,
+    pub account_id: Option<i64>,
     #[serde(rename = "root_account_id")]
-    pub root_account_id: i64,
+    pub root_account_id: Option<i64>,
     #[serde(rename = "enrollment_term_id")]
-    pub enrollment_term_id: i64,
+    pub enrollment_term_id: Option<i64>,
     #[serde(rename = "grading_periods")]
-    pub grading_periods: Value,
+    pub grading_periods: Option<Value>,
     #[serde(rename = "grading_standard_id")]
-    pub grading_standard_id: i64,
+    pub grading_standard_id: Option<i64>,
     #[serde(rename = "grade_passback_setting")]
-    pub grade_passback_setting: String,
+    pub grade_passback_setting: Option<String>,
     #[serde(rename = "created_at")]
-    pub created_at: DateTime<Local>,
+    pub created_at: Option<DateTime<Local>>,
     #[serde(rename = "start_at")]
-    pub start_at: DateTime<Local>,
+    pub start_at: Option<DateTime<Local>>,
     #[serde(rename = "end_at")]
-    pub end_at: DateTime<Local>,
-    pub locale: String,
-    pub enrollments: Value,
+    pub end_at: Option<DateTime<Local>>,
+    pub locale: Option<String>,
+    pub enrollments: Option<Value>,
     #[serde(rename = "total_students")]
     pub total_students: Option<i64>,
-    pub calendar: Value,
+    pub calendar: Option<Value>,
     #[serde(rename = "default_view")]
-    pub default_view: DefaultView,
+    pub default_view: Option<DefaultView>,
     #[serde(rename = "syllabus_body")]
-    pub syllabus_body: String,
+    pub syllabus_body: Option<String>,
     #[serde(rename = "needs_grading_count")]
     pub needs_grading_count: Option<i64>,
     pub term: Option<Term>,
     #[serde(rename = "course_progress")]
     pub course_progress: Option<CourseProgress>,
     #[serde(rename = "apply_assignment_group_weights")]
-    pub apply_assignment_group_weights: bool,
+    pub apply_assignment_group_weights: Option<bool>,
     pub permissions: Option<Permissions>,
     #[serde(rename = "is_public")]
-    pub is_public: bool,
+    pub is_public: Option<bool>,
     #[serde(rename = "is_public_to_auth_users")]
-    pub is_public_to_auth_users: bool,
+    pub is_public_to_auth_users: Option<bool>,
     #[serde(rename = "public_syllabus")]
-    pub public_syllabus: bool,
+    pub public_syllabus: Option<bool>,
     #[serde(rename = "public_syllabus_to_auth")]
-    pub public_syllabus_to_auth: bool,
+    pub public_syllabus_to_auth: Option<bool>,
     #[serde(rename = "public_description")]
     pub public_description: Option<String>,
     #[serde(rename = "storage_quota_mb")]
-    pub storage_quota_mb: i64,
+    pub storage_quota_mb: Option<i64>,
     #[serde(rename = "storage_quota_used_mb")]
-    pub storage_quota_used_mb: i64,
+    pub storage_quota_used_mb: Option<i64>,
     #[serde(rename = "hide_final_grades")]
-    pub hide_final_grades: bool,
-    pub license: String,
+    pub hide_final_grades: Option<bool>,
+    pub license: Option<String>,
     #[serde(rename = "allow_student_assignment_edits")]
-    pub allow_student_assignment_edits: bool,
+    pub allow_student_assignment_edits: Option<bool>,
     #[serde(rename = "allow_wiki_comments")]
-    pub allow_wiki_comments: bool,
+    pub allow_wiki_comments: Option<bool>,
     #[serde(rename = "allow_student_forum_attachments")]
-    pub allow_student_forum_attachments: bool,
+    pub allow_student_forum_attachments: Option<bool>,
     #[serde(rename = "open_enrollment")]
-    pub open_enrollment: bool,
+    pub open_enrollment: Option<bool>,
     #[serde(rename = "self_enrollment")]
-    pub self_enrollment: bool,
+    pub self_enrollment: Option<bool>,
     #[serde(rename = "restrict_enrollments_to_course_dates")]
-    pub restrict_enrollments_to_course_dates: bool,
+    pub restrict_enrollments_to_course_dates: Option<bool>,
     #[serde(rename = "course_format")]
-    pub course_format: String,
+    pub course_format: Option<String>,
     #[serde(rename = "access_restricted_by_date")]
     pub access_restricted_by_date: Option<bool>,
     #[serde(rename = "time_zone")]
-    pub time_zone: String,
+    pub time_zone: Option<String>,
     pub blueprint: Option<bool>,
     #[serde(rename = "blueprint_restrictions")]
     pub blueprint_restrictions: Option<BlueprintRestrictions>,
@@ -167,7 +171,7 @@ pub struct WikiPage {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all(serialize = "lowercase", deserialize = "UPPERCASE"))]
+#[serde(rename_all(serialize = "UPPERCASE", deserialize = "lowercase"))]
 pub enum WorkflowState {
     Unpublished,
     Available,
@@ -176,7 +180,7 @@ pub enum WorkflowState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all(serialize = "lowercase", deserialize = "UPPERCASE"))]
+#[serde(rename_all(serialize = "UPPERCASE", deserialize = "lowercase"))]
 pub enum DefaultView {
     Feed,
     Wiki,
@@ -185,6 +189,7 @@ pub enum DefaultView {
     Syllabus,
 }
 
+#[derive(Debug)]
 pub struct Page<T> {
     pub items: Vec<T>,
     pub current: Url,

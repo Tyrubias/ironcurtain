@@ -1,8 +1,8 @@
 use std::{error::Error, fmt::Display};
 
-use ironcurtain_model::courses::{Course, Page};
+use ironcurtain_model::courses::{Course, Courses, Page};
 use parse_link_header::parse_with_rel;
-use reqwest::header::ToStrError;
+use reqwest::{header::ToStrError, Url};
 
 pub mod models;
 
@@ -33,29 +33,35 @@ impl Client {
 
     pub async fn get_courses(&self) -> Result<Page<Course>, CanvasError> {
         let response = self.get("courses").await?;
-        let headers = response.headers();
-        let courses = self.get("courses").await?.json::<Vec<Course>>().await?;
-        header_to_page(&response, headers.get("link"), courses)
+        let headers = response.headers().clone();
+        let url = response.url().clone();
+        dbg!(&response);
+        let courses = response.json::<Courses>().await?;
+        header_to_page(&url, headers.get("link"), courses.0)
     }
 }
 
 fn header_to_page<T>(
-    response: &reqwest::Response,
+    resp_url: &Url,
     header: Option<&reqwest::header::HeaderValue>,
     items: Vec<T>,
 ) -> Result<Page<T>, CanvasError> {
-    let header = header.map_or("", |x| x.to_str().map_or("", |x| x));
+    let header = if let Some(value) = header {
+        value.to_str().unwrap_or("")
+    } else {
+        ""
+    };
     let links = parse_with_rel(header)?;
     Ok(Page {
         items,
         current: links
             .get("current")
-            .map_or_else(|| response.url().clone(), |x| x.uri.clone()),
+            .map_or_else(|| resp_url.clone(), |x| x.uri.clone()),
         next: links.get("next").map(|x| x.uri.clone()),
         prev: links.get("prev").map(|x| x.uri.clone()),
         first: links
             .get("first")
-            .map_or_else(|| response.url().clone(), |x| x.uri.clone()),
+            .map_or_else(|| resp_url.clone(), |x| x.uri.clone()),
         last: links.get("last").map(|x| x.uri.clone()),
     })
 }
@@ -125,7 +131,7 @@ pub struct ClientBuilder {
 }
 
 impl ClientBuilder {
-    pub fn build(self) -> Client {
+    pub fn build(&self) -> Client {
         let auth_header = format!("Bearer {}", self.auth_token.trim());
         let mut headers = reqwest::header::HeaderMap::new();
 
@@ -154,4 +160,10 @@ impl ClientBuilder {
         self.auth_token = token;
         self
     }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_courses() {}
 }
