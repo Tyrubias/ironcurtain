@@ -1,10 +1,10 @@
-use std::{error::Error, fmt::Display};
+use futures::{Future, Stream};
+pub use ironcurtain_model as models;
+use std::{error::Error, fmt::Display, pin::Pin};
 
-use ironcurtain_model::courses::{Course, Courses, Page};
+use crate::models::courses::{Course, Page};
 use parse_link_header::parse_with_rel;
 use reqwest::{header::ToStrError, Url};
-
-pub mod models;
 
 pub struct Client {
     full_url: String,
@@ -35,9 +35,8 @@ impl Client {
         let response = self.get("courses").await?;
         let headers = response.headers().clone();
         let url = response.url().clone();
-        dbg!(&response);
-        let courses = response.json::<Courses>().await?;
-        header_to_page(&url, headers.get("link"), courses.0)
+        let courses = response.json::<Vec<Course>>().await?;
+        header_to_page(&url, headers.get("link"), courses)
     }
 }
 
@@ -46,11 +45,7 @@ fn header_to_page<T>(
     header: Option<&reqwest::header::HeaderValue>,
     items: Vec<T>,
 ) -> Result<Page<T>, CanvasError> {
-    let header = if let Some(value) = header {
-        value.to_str().unwrap_or("")
-    } else {
-        ""
-    };
+    let header = header.ok_or_else(CanvasError::default)?.to_str()?;
     let links = parse_with_rel(header)?;
     Ok(Page {
         items,
@@ -66,7 +61,7 @@ fn header_to_page<T>(
     })
 }
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct CanvasError {
     kind: CanvasErrorKind,
     message: String,
@@ -77,6 +72,12 @@ enum CanvasErrorKind {
     Request,
     HeaderParse,
     LinkParse,
+}
+
+impl Default for CanvasErrorKind {
+    fn default() -> Self {
+        CanvasErrorKind::Request
+    }
 }
 
 impl Display for CanvasErrorKind {
@@ -124,6 +125,33 @@ impl Display for CanvasError {
 
 impl Error for CanvasError {}
 
+pub type Paginator<'a, T> = Pin<Box<dyn Stream<Item = T> + 'a>>;
+
+pub fn paginate<'a, T: 'a, Fut, Request: 'a>(
+    req: Request,
+    next_url: Url,
+) -> Paginator<'a, Result<T, CanvasError>>
+where
+    T: Unpin,
+    Fut: Future<Output = Result<Page<T>, CanvasError>>,
+    Request: Fn(Url) -> Fut,
+{
+    use async_stream::stream;
+    Box::pin(stream! {
+        let mut page_url = next_url;
+        loop {
+            let page = req(page_url).await?;
+            for item in page.items {
+                yield Ok(item);
+            }
+            if page.next.is_none() {
+                break;
+            }
+            page_url = page.next.unwrap();
+        }
+    })
+}
+
 #[derive(Default)]
 pub struct ClientBuilder {
     base_url: String,
@@ -135,7 +163,7 @@ impl ClientBuilder {
         let auth_header = format!("Bearer {}", self.auth_token.trim());
         let mut headers = reqwest::header::HeaderMap::new();
 
-        headers.append(
+        headers.insert(
             reqwest::header::AUTHORIZATION,
             reqwest::header::HeaderValue::from_str(auth_header.as_str())
                 .expect("Could not convert authorization header to string"),
