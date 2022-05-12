@@ -1,7 +1,5 @@
 use thiserror::Error;
 
-pub type Result<T> = std::result::Result<T, Error>;
-
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Request error")]
@@ -24,4 +22,6 @@ pub enum Error {
         #[from]
         source: url::ParseError,
     },
+    #[error("Missing link header")]
+    NoLinkHeader,
 }
